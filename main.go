@@ -1,20 +1,37 @@
 package main
 
 import (
+	"context"
+	"database/sql"
 	"fmt"
 	"main/internal/config"
+	"main/internal/database"
 	"os"
+	"time"
+
+	"github.com/google/uuid"
+	_ "github.com/lib/pq"
 )
 
 func main() {
+	dbURL := "postgres://postgres:postgres@localhost:5432/gator?sslmode=disable"
+
 	config, err := config.Read()
 	if err != nil {
 		fmt.Printf("Error reading config file %s", err)
 	}
 
-	appState := state{cfg: &config}
+	db, err := sql.Open("postgres", dbURL)
+	dbQueries := database.New(db)
+	if err != nil {
+		fmt.Printf("Error connecting to the database: %s", err)
+	}
+
+	appState := state{cfg: &config, db: dbQueries}
 	cmds := commands{availibleCommands: map[string]func(*state, command) error{}}
 	cmds.register("login", handlerLogin)
+	cmds.register("register", handlerRegister)
+	cmds.register("reset", handlerReset)
 	if len(os.Args) < 2 {
 		err := fmt.Errorf("no arguments passed, exiting")
 		fmt.Println(err)
@@ -30,6 +47,7 @@ func main() {
 
 type state struct {
 	cfg *config.Config
+	db  *database.Queries
 }
 
 type command struct {
@@ -61,11 +79,43 @@ func handlerLogin(s *state, cmd command) error {
 			err := fmt.Errorf("login command requires at least one argument")
 			return err
 		}
-		err := s.cfg.SetUser(cmd.args[0])
+		user, err := s.db.GetUser(context.Background(), cmd.args[0])
 		if err != nil {
 			return err
 		}
-		fmt.Printf("The user has been set to: %s", cmd.args[0])
+		err = s.cfg.SetUser(user.Name)
+		fmt.Printf("The user has been set to: %s", user.Name)
+	}
+	return nil
+}
+
+func handlerRegister(s *state, cmd command) error {
+	if cmd.name == "register" {
+		if len(cmd.args) == 0 {
+			err := fmt.Errorf("register command requires at least 2 argument")
+			return err
+		}
+		params := database.CreateUserParams{ID: uuid.New(), CreatedAt: time.Now(), UpdatedAt: time.Now(), Name: cmd.args[0]}
+		user, err := s.db.CreateUser(context.Background(), params)
+		if err != nil {
+			return err
+		}
+		err = s.cfg.SetUser(user.Name)
+		if err != nil {
+			return err
+		}
+		fmt.Printf("The user has been set to: %s", user.Name)
+	}
+	return nil
+}
+
+func handlerReset(s *state, cmd command) error {
+	if cmd.name == "reset" {
+		err := s.db.DeleteUsers(context.Background())
+		if err != nil {
+			return err
+		}
+		fmt.Print("The users table has been reset")
 	}
 	return nil
 }
