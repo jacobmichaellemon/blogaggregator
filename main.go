@@ -34,6 +34,7 @@ func main() {
 	cmds.register("reset", handlerReset)
 	cmds.register("users", handlerListUsers)
 	cmds.register("agg", handlerAggregator)
+	cmds.register("addfeed", addFeed)
 	if len(os.Args) < 2 {
 		err := fmt.Errorf("no arguments passed, exiting")
 		fmt.Println(err)
@@ -94,7 +95,7 @@ func handlerLogin(s *state, cmd command) error {
 func handlerRegister(s *state, cmd command) error {
 	if cmd.name == "register" {
 		if len(cmd.args) == 0 {
-			err := fmt.Errorf("register command requires at least 2 argument")
+			err := fmt.Errorf("register command requires at least one argument")
 			return err
 		}
 		params := database.CreateUserParams{ID: uuid.New(), CreatedAt: time.Now(), UpdatedAt: time.Now(), Name: cmd.args[0]}
@@ -132,6 +133,27 @@ func handlerAggregator(s *state, cmd command) error {
 	url := "https://www.wagslane.dev/index.xml"
 	if cmd.name == "agg" {
 		fetchFeed(context.Background(), url)
+	}
+	return nil
+}
+
+func addFeed(s *state, cmd command) error {
+	if cmd.name == "addfeed" {
+		if len(cmd.args) <= 1 {
+			err := fmt.Errorf("add feed command requires at least 2 argument")
+			return err
+		}
+		user, err := s.db.GetUser(context.Background(), s.cfg.CurrentUserName)
+		if err != nil {
+			return err
+		}
+		params := database.CreateFeedParams{ID: uuid.New(), CreatedAt: time.Now(), UpdatedAt: time.Now(), Name: cmd.args[0], Url: cmd.args[1], UserID: user.ID}
+		feed, err := s.db.CreateFeed(context.Background(), params)
+
+		if err != nil {
+			return err
+		}
+		fmt.Printf("New feed created for %s with name: %s and url: %s", s.cfg.CurrentUserName, feed.Name, feed.Url)
 	}
 	return nil
 }
