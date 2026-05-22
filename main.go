@@ -32,6 +32,7 @@ func main() {
 	cmds.register("login", handlerLogin)
 	cmds.register("register", handlerRegister)
 	cmds.register("reset", handlerReset)
+	cmds.register("users", handlerListUsers)
 	if len(os.Args) < 2 {
 		err := fmt.Errorf("no arguments passed, exiting")
 		fmt.Println(err)
@@ -105,6 +106,23 @@ func handlerRegister(s *state, cmd command) error {
 			return err
 		}
 		fmt.Printf("The user has been set to: %s", user.Name)
+	}
+	return nil
+}
+
+func handlerListUsers(s *state, cmd command) error {
+	if cmd.name == "users" {
+		users, err := s.db.GetUsers(context.Background())
+		if err != nil {
+			return err
+		}
+		for _, value := range users {
+			if value.Name == s.cfg.CurrentUserName {
+				fmt.Printf("* %s (current)\n", value.Name)
+			} else {
+				fmt.Printf("* %s\n", value.Name)
+			}
+		}
 	}
 	return nil
 }
