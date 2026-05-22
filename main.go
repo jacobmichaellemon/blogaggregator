@@ -33,6 +33,7 @@ func main() {
 	cmds.register("register", handlerRegister)
 	cmds.register("reset", handlerReset)
 	cmds.register("users", handlerListUsers)
+	cmds.register("agg", handlerAggregator)
 	if len(os.Args) < 2 {
 		err := fmt.Errorf("no arguments passed, exiting")
 		fmt.Println(err)
@@ -123,6 +124,14 @@ func handlerListUsers(s *state, cmd command) error {
 				fmt.Printf("* %s\n", value.Name)
 			}
 		}
+	}
+	return nil
+}
+
+func handlerAggregator(s *state, cmd command) error {
+	url := "https://www.wagslane.dev/index.xml"
+	if cmd.name == "agg" {
+		fetchFeed(context.Background(), url)
 	}
 	return nil
 }
