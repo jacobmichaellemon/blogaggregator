@@ -34,7 +34,8 @@ func main() {
 	cmds.register("reset", handlerReset)
 	cmds.register("users", handlerListUsers)
 	cmds.register("agg", handlerAggregator)
-	cmds.register("addfeed", addFeed)
+	cmds.register("addfeed", handlerAddFeed)
+	cmds.register("feeds", handlerListFeeds)
 	if len(os.Args) < 2 {
 		err := fmt.Errorf("no arguments passed, exiting")
 		fmt.Println(err)
@@ -137,7 +138,7 @@ func handlerAggregator(s *state, cmd command) error {
 	return nil
 }
 
-func addFeed(s *state, cmd command) error {
+func handlerAddFeed(s *state, cmd command) error {
 	if cmd.name == "addfeed" {
 		if len(cmd.args) <= 1 {
 			err := fmt.Errorf("add feed command requires at least 2 argument")
@@ -154,6 +155,26 @@ func addFeed(s *state, cmd command) error {
 			return err
 		}
 		fmt.Printf("New feed created for %s with name: %s and url: %s", s.cfg.CurrentUserName, feed.Name, feed.Url)
+	}
+	return nil
+}
+
+func handlerListFeeds(s *state, cmd command) error {
+	if cmd.name == "feeds" {
+		feeds, err := s.db.GetFeeds(context.Background())
+		if err != nil {
+			return err
+		}
+		for _, value := range feeds {
+			feedCreatedByName, err := s.db.GetUserNameById(context.Background(), value.UserID)
+			if err != nil {
+				return err
+			}
+			fmt.Println("-- Feed Information --")
+			fmt.Printf("Feed Name: %s \n", value.Name)
+			fmt.Printf("Feed URL : %s \n", value.Url)
+			fmt.Printf("Created By:  %s \n", feedCreatedByName)
+		}
 	}
 	return nil
 }
