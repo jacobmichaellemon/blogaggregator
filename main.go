@@ -81,6 +81,25 @@ func (c *commands) register(name string, f func(*state, command) error) {
 	c.availibleCommands[name] = f
 }
 
+func scrapeFeeds(s *state) error {
+	feed, err := s.db.GetNextFeedToFetch(context.Background())
+	fmt.Printf("Fetching Feed: %s\n", feed.Name)
+	if err != nil {
+		return err
+	}
+
+	s.db.MarkFeedFetched(context.Background(), feed.ID)
+	rssFeed, err := fetchFeed(context.Background(), feed.Url)
+	if err != nil {
+		return err
+	}
+
+	for _, value := range rssFeed.Channel.Item {
+		fmt.Printf("* %s\n", value.Title)
+	}
+	return nil
+}
+
 func handlerLogin(s *state, cmd command) error {
 	if cmd.name == "login" {
 		if len(cmd.args) == 0 {
@@ -100,7 +119,7 @@ func handlerLogin(s *state, cmd command) error {
 func handlerRegister(s *state, cmd command) error {
 	if cmd.name == "register" {
 		if len(cmd.args) == 0 {
-			err := fmt.Errorf("register command requires at least one argument")
+			err := fmt.Errorf("register command requires at least one argument: name \n")
 			return err
 		}
 		params := database.CreateUserParams{ID: uuid.New(), CreatedAt: time.Now(), UpdatedAt: time.Now(), Name: cmd.args[0]}
@@ -112,7 +131,7 @@ func handlerRegister(s *state, cmd command) error {
 		if err != nil {
 			return err
 		}
-		fmt.Printf("The user has been set to: %s", user.Name)
+		fmt.Printf("The user has been set to: %s \n", user.Name)
 	}
 	return nil
 }
@@ -135,9 +154,21 @@ func handlerListUsers(s *state, cmd command) error {
 }
 
 func handlerAggregator(s *state, cmd command) error {
-	url := "https://www.wagslane.dev/index.xml"
 	if cmd.name == "agg" {
-		fetchFeed(context.Background(), url)
+		if len(cmd.args) == 0 {
+			err := fmt.Errorf("agg command requires at least one argument: time_between_reqs (1s, 1m, 1h, etc)")
+			return err
+		}
+		timeBetweenRequests, err := time.ParseDuration(cmd.args[0])
+		if err != nil {
+			return err
+		}
+		ticker := time.NewTicker(timeBetweenRequests)
+		fmt.Printf("Collecting feeds every %s\n", timeBetweenRequests)
+		for ; ; <-ticker.C {
+			scrapeFeeds(s)
+		}
+
 	}
 	return nil
 }
@@ -160,7 +191,7 @@ func handlerAddFeed(s *state, cmd command, user database.User) error {
 		if err != nil {
 			return err
 		}
-		fmt.Printf("A feed: %s has been followed by: %s", feed_follow.FeedName, feed_follow.UserName)
+		fmt.Printf("A feed: %s has been followed by: %s\n", feed_follow.FeedName, feed_follow.UserName)
 	}
 	return nil
 }
@@ -188,7 +219,7 @@ func handlerListFeeds(s *state, cmd command) error {
 func handlerFollow(s *state, cmd command, user database.User) error {
 	if cmd.name == "follow" {
 		if len(cmd.args) == 0 {
-			err := fmt.Errorf("follow command requires at least one argument")
+			err := fmt.Errorf("follow command requires at least one argument: url")
 			return err
 		}
 
@@ -226,7 +257,7 @@ func handlerFollowing(s *state, cmd command, user database.User) error {
 func handlerUnfollow(s *state, cmd command, user database.User) error {
 	if cmd.name == "unfollow" {
 		if len(cmd.args) == 0 {
-			err := fmt.Errorf("unfollow command requires at least one argument: url")
+			err := fmt.Errorf("unfollow command requires at least one argument: url\n")
 			return err
 		}
 		feed, err := s.db.GetFeedByUrl(context.Background(), cmd.args[0])
@@ -256,7 +287,7 @@ func handlerReset(s *state, cmd command) error {
 		if err != nil {
 			return err
 		}
-		fmt.Print("The users table has been reset")
+		fmt.Print("The users table has been reset \n")
 	}
 	return nil
 }

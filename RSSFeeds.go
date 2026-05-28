@@ -44,7 +44,6 @@ func fetchFeed(ctx context.Context, feedURL string) (*RSSFeed, error) {
 	if err != nil {
 		fmt.Printf("Issue reading data %s", err)
 	}
-	fmt.Printf("Data reader: %s \n", data)
 
 	var feed RSSFeed
 	err = xml.Unmarshal(data, &feed)
