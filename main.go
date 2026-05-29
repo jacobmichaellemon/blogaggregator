@@ -136,7 +136,7 @@ func scrapeFeeds(s *state) error {
 		if err != nil {
 			return err
 		}
-		fmt.Printf("***Post created: ID %s \nCreated At: %s \nUpdated At: %s\nTitle: %s\nLink: %s\nDescription: %s\nPub Date: %s\nFeed Id: %s\n***\n", post.ID, post.CreatedAt, post.UpdatedAt, post.Title.String, post.Url.String, post.Description.String, post.PublishedAt.Time, post.FeedID)
+		fmt.Printf("***Post created:\nTitle: %s\nLink: %s\n", post.Title.String, post.Url.String)
 	}
 	return nil
 }
@@ -240,7 +240,7 @@ func handlerListUsers(s *state, cmd command) error {
 func handlerAddFeed(s *state, cmd command, user database.User) error {
 	if cmd.name == "addfeed" {
 		if len(cmd.args) <= 1 {
-			err := fmt.Errorf("add feed command requires at least 2 argument")
+			err := fmt.Errorf("add feed command requires at least 2 argument: 'name' 'url'")
 			return err
 		}
 		params := database.CreateFeedParams{ID: uuid.New(), CreatedAt: time.Now(), UpdatedAt: time.Now(), Name: cmd.args[0], Url: cmd.args[1], UserID: user.ID}
