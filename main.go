@@ -7,6 +7,7 @@ import (
 	"main/internal/config"
 	"main/internal/database"
 	"os"
+	"strconv"
 	"time"
 
 	"github.com/google/uuid"
@@ -39,6 +40,7 @@ func main() {
 	cmds.register("follow", middlewareLoggedIn(handlerFollow))
 	cmds.register("following", middlewareLoggedIn(handlerFollowing))
 	cmds.register("unfollow", middlewareLoggedIn(handlerUnfollow))
+	cmds.register("browse", handlerBrowse)
 
 	if len(os.Args) < 2 {
 		err := fmt.Errorf("no arguments passed, exiting")
@@ -96,6 +98,88 @@ func scrapeFeeds(s *state) error {
 
 	for _, value := range rssFeed.Channel.Item {
 		fmt.Printf("* %s\n", value.Title)
+		if value.Title != "" {
+
+		}
+		postParams := database.CreatePostParams{ID: uuid.New(), CreatedAt: time.Now(), UpdatedAt: time.Now(), FeedID: feed.ID}
+
+		if value.Title != "" {
+			postParams.Title = sql.NullString{String: value.Title, Valid: true}
+		} else {
+			postParams.Title = sql.NullString{String: "", Valid: false}
+		}
+
+		if value.Link != "" {
+			postParams.Url = sql.NullString{String: value.Link, Valid: true}
+		} else {
+			postParams.Url = sql.NullString{String: "", Valid: false}
+		}
+
+		if value.Description != "" {
+			postParams.Description = sql.NullString{String: value.Description, Valid: true}
+		} else {
+			postParams.Description = sql.NullString{String: "", Valid: false}
+		}
+
+		if value.PubDate != "" {
+			stringToTime, err := time.Parse(time.RFC1123Z, value.PubDate)
+			if err != nil {
+				return err
+			}
+			postParams.PublishedAt = sql.NullTime{Time: stringToTime, Valid: true}
+		} else {
+			var nilTime time.Time
+			postParams.PublishedAt = sql.NullTime{Time: nilTime, Valid: false}
+		}
+
+		post, err := s.db.CreatePost(context.Background(), postParams)
+		if err != nil {
+			return err
+		}
+		fmt.Printf("***Post created: ID %s \nCreated At: %s \nUpdated At: %s\nTitle: %s\nLink: %s\nDescription: %s\nPub Date: %s\nFeed Id: %s\n***\n", post.ID, post.CreatedAt, post.UpdatedAt, post.Title.String, post.Url.String, post.Description.String, post.PublishedAt.Time, post.FeedID)
+	}
+	return nil
+}
+
+func handlerAggregator(s *state, cmd command) error {
+	if cmd.name == "agg" {
+		if len(cmd.args) == 0 {
+			err := fmt.Errorf("agg command requires at least one argument: time_between_reqs (1s, 1m, 1h, etc)")
+			return err
+		}
+		timeBetweenRequests, err := time.ParseDuration(cmd.args[0])
+		if err != nil {
+			return err
+		}
+		ticker := time.NewTicker(timeBetweenRequests)
+		fmt.Printf("Collecting feeds every %s\n", timeBetweenRequests)
+		for ; ; <-ticker.C {
+			scrapeFeeds(s)
+		}
+
+	}
+	return nil
+}
+
+func handlerBrowse(s *state, cmd command) error {
+	if cmd.name == "browse" {
+		var browseLimit int32 = 2
+		if len(cmd.args) == 1 {
+			num64, err := strconv.ParseInt(cmd.args[0], 10, 32) //check if number fits into int 32
+			if err != nil {
+				return err
+			}
+			num32 := int32(num64) //if so, cast to int32
+			browseLimit = num32
+		}
+		posts, err := s.db.GetPosts(context.Background(), browseLimit)
+		if err != nil {
+			return err
+		}
+		fmt.Println("-- Posts found --")
+		for _, value := range posts {
+			fmt.Printf("Title: %s\n URl: %s\n", value.Title.String, value.Url.String)
+		}
 	}
 	return nil
 }
@@ -149,26 +233,6 @@ func handlerListUsers(s *state, cmd command) error {
 				fmt.Printf("* %s\n", value.Name)
 			}
 		}
-	}
-	return nil
-}
-
-func handlerAggregator(s *state, cmd command) error {
-	if cmd.name == "agg" {
-		if len(cmd.args) == 0 {
-			err := fmt.Errorf("agg command requires at least one argument: time_between_reqs (1s, 1m, 1h, etc)")
-			return err
-		}
-		timeBetweenRequests, err := time.ParseDuration(cmd.args[0])
-		if err != nil {
-			return err
-		}
-		ticker := time.NewTicker(timeBetweenRequests)
-		fmt.Printf("Collecting feeds every %s\n", timeBetweenRequests)
-		for ; ; <-ticker.C {
-			scrapeFeeds(s)
-		}
-
 	}
 	return nil
 }
