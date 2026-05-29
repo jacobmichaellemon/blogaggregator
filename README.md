@@ -25,13 +25,23 @@ Linux / WSL (Debian)
 ### Availble gator program CLI commands
 
 `gator register username` registers a user in the program
+
 `gator login username` logs in the requested user assuming there are multiple users
+
 `gator users` lists the users availble in the DB
+
 `gator addfeed "feed title" "url"` adds a feed and follows for the current logged in user
+
 `gator feeds` lists the feeds availble to follow
+
 `gator follow "url"` follows the feed given the url provided
+
 `gator following` lists the followed feeds of the user that is currently logged in
+
 `gator unfollow url` unfllows the the feed given the url provided
+
 `gator browse number_posts_to_browse` shows the requested number of posts
+
 `gator agg time_between_reqs`  aggregate posts from the feeds availble given the time_between_reqs (1s, 1m, 1h, etc)
+
 `gator reset` **RESET DB, USE WITH CAUTION** 
